@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق أثر - منصة العطاء والخير الشاملة</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة الخرائط Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 relative">
+
+    <!-- نظام التنبيهات العصرية (Toast Notifications) -->
+    <div id="toastContainer" class="fixed top-5 left-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- الشريط العلوي -->
+    <header class="bg-gradient-to-r from-emerald-700 to-teal-800 text-white p-5 text-center shadow-lg relative overflow-hidden">
+        <div class="absolute -left-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div>
+        <h1 class="text-3xl font-black tracking-wide">تطبيق أثر 🌱</h1>
+        <p class="text-sm text-emerald-100 mt-1">منصة العطاء وربط المتبرعين بالمحتاجين لوجه الله</p>
+        <span class="inline-block mt-2 text-xs bg-emerald-900/50 px-3 py-1 rounded-full border border-emerald-600">Developer: Mohamed Adel El-Sayed (حماده الطبلاوي)</span>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 space-y-6 my-4">
+        
+        <!-- زر طلب مساعدة للمحتاجين -->
+        <div class="bg-gradient-to-r from-rose-600 to-pink-700 text-white p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row justify-between items-center text-center sm:text-right gap-4 border border-rose-500/30">
+            <div>
+                <h2 class="text-lg font-black">🤲 هل أنت محتاج لمساعدة أو وجبة طعام؟</h2>
+                <p class="text-xs text-rose-100 mt-1">اضغط هنا لتسجيل طلب احتياجك أو وجبتك وسنقوم بتلبيتها في أسرع وقت لوجه الله.</p>
+            </div>
+            <button onclick="openModal('needModal')" class="bg-white text-rose-800 hover:bg-rose-50 font-black px-5 py-3 rounded-2xl text-xs transition shadow-md whitespace-nowrap cursor-pointer">اطلب مساعدة / وجبة الآن</button>
+        </div>
+
+        <!-- عداد أثر الخير التفاعلي -->
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-5 rounded-3xl shadow-xl flex justify-around text-center border border-emerald-500/30">
+            <div>
+                <p class="text-3xl font-black" id="statDonations">0</p>
+                <p class="text-xs text-emerald-100 mt-1 font-semibold">تبرع متاح</p>
+            </div>
+            <div class="border-r border-emerald-500/50"></div>
+            <div>
+                <p class="text-3xl font-black" id="statReserved">0</p>
+                <p class="text-xs text-emerald-100 mt-1 font-semibold">حاجة تم قضاؤها</p>
+            </div>
+            <div class="border-r border-emerald-500/50"></div>
+            <div>
+                <p class="text-3xl font-black">100%</p>
+                <p class="text-xs text-emerald-100 mt-1 font-semibold">لوجه الله</p>
+            </div>
+        </div>
+
+        <!-- قسم التبرع النقدي (فودافون كاش) -->
+        <div class="bg-gradient-to-r from-indigo-700 to-blue-800 text-white p-6 rounded-3xl shadow-xl border border-indigo-500/30 text-center">
+            <h2 class="text-xl font-black mb-2">💳 التبرع النقدي ودعم الحالات (فودافون كاش)</h2>
+            <p class="text-xs text-indigo-100 mb-4">يمكنك التبرع مباشرة عبر المحفظة الإلكترونية المعتمدة للإدارة:</p>
+            <div class="flex flex-wrap justify-center gap-3" id="cashNumbersContainer">
+                <div class="bg-white/10 px-4 py-2.5 rounded-xl border border-indigo-400/30 text-sm font-mono">
+                    Vodafone Cash: <span class="font-bold text-amber-300">01040955612</span> (رئيسي)
+                </div>
+            </div>
+        </div>
+
+        <!-- قسم وجبة لأخوك -->
+        <div class="bg-gradient-to-r from-amber-600 to-orange-700 text-white p-6 rounded-3xl shadow-xl border border-amber-500/30 text-center">
+            <h2 class="text-xl font-black mb-2">🍲 مبادرة "وجبة لأخوك" الإطعام الفوري</h2>
+            <p class="text-xs text-amber-100 mb-4">ساهم بتكلفة الوجبات (سعر الوجبة الواحدة 70ج)</p>
+            <div class="bg-white/10 p-4 rounded-2xl mb-4 inline-block px-8 border border-amber-400/30">
+                <span class="text-xs text-amber-200 block">إجمالي الوجبات المطلوبة حالياً:</span>
+                <span class="text-4xl font-black" id="mealsNeededCount">1000</span> <span class="text-sm">وجبة</span>
+            </div>
+            <div>
+                <button type="button" onclick="donateMeal(1)" class="bg-white text-orange-800 hover:bg-orange-50 font-bold px-4 py-2 rounded-xl text-xs mx-1 transition cursor-pointer">تبرع بوجبة (70ج)</button>
+                <button type="button" onclick="donateMeal(3)" class="bg-white text-orange-800 hover:bg-orange-50 font-bold px-4 py-2 rounded-xl text-xs mx-1 transition cursor-pointer">تبرع بـ 3 وجبات (210ج)</button>
+                <button type="button" onclick="donateMeal(5)" class="bg-white text-orange-800 hover:bg-orange-50 font-bold px-4 py-2 rounded-xl text-xs mx-1 transition cursor-pointer">تبرع بـ 5 وجبات (350ج)</button>
+            </div>
+        </div>
+
+        <!-- شبكة المطاعم الخيرية -->
+        <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-black text-amber-800 flex items-center gap-2">
+                    <span>🍽️</span> شبكة المطاعم الخيرية ونقاط الولاء
+                </h2>
+                <button onclick="openModal('restaurantModal')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer">+ انضم كمطعم خيري</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="restaurantsList">
+                <p class="text-xs text-slate-400 col-span-2">جاري تحميل المطاعم...</p>
+            </div>
+        </div>
+
+        <!-- شبكة الأطباء والصيدليات (قسم شفاء) -->
+        <div class="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-black text-rose-800 flex items-center gap-2">
+                    <span>🩺💊</span> شبكة الأطباء والصيدليات (قسم شفاء)
+                </h2>
+                <div class="flex gap-2">
+                    <button onclick="openModal('doctorModal')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer">+ تسجيل طبيب</button>
+                    <button onclick="openModal('pharmacyModal')" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer">+ تسجيل صيدلية</button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-bold text-rose-900 text-sm mb-3">👨‍⚕️ الأطباء المسجلون</h3>
+                    <div id="medicalNetworkList" class="space-y-3">
+                        <p class="text-xs text-slate-400">جاري تحميل الأطباء...</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold text-teal-900 text-sm mb-3">💊 الصيدليات المسجلة</h3>
+                    <div id="pharmaciesList" class="space-y-3">
+                        <p class="text-xs text-slate-400">جاري تحميل الصيدليات...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- محلات الملابس ومناديب التوصيل والمدارس -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-slate-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-black text-purple-800 text-sm">👕 محلات الملابس</h3>
+                    <button onclick="openModal('clothesModal')" class="bg-purple-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer">+ انضمام</button>
+                </div>
+                <div id="clothesList" class="space-y-2 text-xs text-slate-600">جاري التحميل...</div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-slate-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-black text-blue-800 text-sm">🚚 مناديب التوصيل</h3>
+                    <button onclick="openModal('driverModal')" class="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer">+ تسجيل دليفري</button>
+                </div>
+                <div id="driversList" class="space-y-2 text-xs text-slate-600">جاري التحميل...</div>
+            </div>
+            <div class="bg-white p-5 rounded-3xl shadow-xl border border-slate-100">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-black text-emerald-800 text-sm">📚 المدارس والمعلمون</h3>
+                    <button onclick="openModal('teacherModal')" class="bg-emerald-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg cursor-pointer">+ انضمام معلم</button>
+                </div>
+                <div id="teachersList" class="space-y-2 text-xs text-slate-600">جاري التحميل...</div>
+            </div>
+        </div>
+
+        <!-- قسم الخريطة التفاعلية -->
+        <div class="bg-white p-4 rounded-3xl shadow-xl border border-slate-100">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-3 gap-2">
+                <h2 class="text-lg font-bold text-emerald-900 flex items-center gap-2">
+                    <span>📍</span> خريطة العطاء التفاعلية بالقرب منك
+                </h2>
+                <button type="button" id="locateBtn" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer">
+                    <span>📍</span> تحديد موقعي الحالي
+                </button>
+            </div>
+            <div id="map" class="h-72 md:h-96 rounded-2xl border-2 border-emerald-600/20 shadow-inner z-10"></div>
+            <p class="text-xs text-slate-400 mt-2 text-center">اضغط على أي مكان في الخريطة لتحديد إحداثيات تبرعك بدقة (سيظهر باللون الأزرق)</p>
+        </div>
+
+        <!-- نموذج إضافة تبرع جديد أو طلب مساعدة -->
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-slate-100">
+            <h2 class="text-xl font-black text-emerald-900 mb-6 text-center">إضافة تبرع أو مساعدة جديدة لوجه الله 🤍</h2>
+            
+            <form id="donationForm" class="space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-slate-700 text-sm font-bold mb-2">اسم الغرض أو الحالة</label>
+                        <input type="text" id="itemTitle" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition" placeholder="مثال: ثلاجة، ملابس، دواء، لبن أطفال..." maxlength="100" required>
+                    </div>
+                    <div>
+                        <label class="block text-slate-700 text-sm font-bold mb-2">تصنيف العطاء</label>
+                        <select id="itemCategory" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition">
+                            <option value="general">تبرع عام (أجهزة، كتب مدارس)</option>
+                            <option value="clothes">👕 ملابس قديمة بحالة جيدة</option>
+                            <option value="books">📚 كتب مدارس وأدوات تعليمية</option>
+                            <option value="toys">🧸 لعب أطفال قديمة وجديدة</option>
+                            <option value="milk">🍼 لبن أطفال ومستلزمات رضع</option>
+                            <option value="marriage">💍 تيسير الزواج (تجهيز عرائس)</option>
+                            <option value="medicine">💊 دواء خيري (أدوية سارية)</option>
+                            <option value="surgery">🏥 مساهمة في عملية جراحية</option>
+                            <option value="sponsor">🤝 كفالة يومية / أسبوعية / شهرية</option>
+                            <option value="mosque">🕌 تسليم مسجد / جهة معتمدة</option>
+                            <option value="debt">🤝 فك كرب الغارمين والمحتاجين</option>
+                            <option value="driver">🚚 سائق الخير (توصيل أثاث ونقل)</option>
+                            <option value="food">🍲 إطعام الطعام (فائض ولائم ومطاعم)</option>
+                            <option value="initiative">⛺ مبادرة شبابية / مجتمعية</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label class="block text-slate-700 text-sm font-bold mb-2">نوع الحالة</label>
+                        <select id="itemUrgency" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition">
+                            <option value="normal">عادي (متاح)</option>
+                            <option value="urgent">🚨 طارئ جداً (حاجة ملحة عاجلة)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-slate-700 text-sm font-bold mb-2">خط العرض (Latitude)</label>
+                        <input type="number" step="any" id="itemLat" class="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 font-mono text-sm" placeholder="اختر من الخريطة" required readonly>
+                    </div>
+                    <div>
+                        <label class="block text-slate-700 text-sm font-bold mb-2">خط الطول (Longitude)</label>
+                        <input type="number" step="any" id="itemLng" class="w-full p-3.5 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 font-mono text-sm" placeholder="اختر من الخريطة" required readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 text-sm font-bold mb-2">وصف تفصيلي وحالة الغرض</label>
+                    <textarea id="itemDesc" class="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none transition" rows="3" placeholder="اكتب تفاصيل تسهل على المستفيد معرفة حالة الغرض أو طريقة التواصل..." maxlength="500" required></textarea>
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-4 rounded-2xl transition duration-200 shadow-lg shadow-emerald-600/25 cursor-pointer">
+                    انشر التبرع على الخريطة لوجه الله 🤍
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- النوافذ المنبثقة (Modals) -->
+    <div id="needModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-rose-800">طلب مساعدة أو وجبة فورية</h3>
+            <input type="text" id="needName" placeholder="اسمك الثلاثي" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="needPhone" placeholder="رقم الهاتف للتواصل" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <select id="needType" class="w-full p-3 bg-slate-50 border rounded-xl text-sm">
+                <option value="وجبة طعام فورية">وجبة طعام فورية</option>
+                <option value="مساعدة نقدية / فك كرب">مساعدة نقدية / فك كرب</option>
+                <option value="دواء أو علاج">دواء أو علاج</option>
+                <option value="ملابس أو أجهزة">ملابس أو أجهزة</option>
+                <option value="أخرى">أخرى</option>
+            </select>
+            <textarea id="needDetails" placeholder="اكتب تفاصيل حالتك باختصار..." class="w-full p-3 bg-slate-50 border rounded-xl text-sm" rows="3" required></textarea>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('needs', {name: document.getElementById('needName').value.trim(), phone: document.getElementById('needPhone').value.trim(), type: document.getElementById('needType').value, details: document.getElementById('needDetails').value.trim(), status: 'pending'}, 'needModal')" class="flex-1 bg-rose-600 text-white font-bold p-3 rounded-xl cursor-pointer">إرسال الطلب</button>
+                <button onclick="closeModal('needModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="restaurantModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-amber-800">انضمام مطعم جديد لشبكة الخير</h3>
+            <input type="text" id="resName" placeholder="اسم المطعم" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="resPhone" placeholder="رقم الهاتف والتواصل" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <select id="resType" class="w-full p-3 bg-slate-50 border rounded-xl text-sm">
+                <option value="خيري بالكامل">خيري بالكامل (مجاني)</option>
+                <option value="خصم خيري">يقدم وجبات بنسبة خصم رمزية</option>
+                <option value="مستعد للتوصيل">يضمن تحضير وتوصيل الوجبات</option>
+            </select>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('restaurants', {name: document.getElementById('resName').value.trim(), phone: document.getElementById('resPhone').value.trim(), type: document.getElementById('resType').value, points: 0}, 'restaurantModal')" class="flex-1 bg-amber-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('restaurantModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="doctorModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-rose-800">تسجيل طبيب خيري</h3>
+            <input type="text" id="docName" placeholder="اسم الطبيب والتخصص" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="docPhone" placeholder="رقم الهاتف والعنوان" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="text" id="docOffer" placeholder="نوع الخدمة (كشف مجاني / مخفض)" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('doctors', {name: document.getElementById('docName').value.trim(), phone: document.getElementById('docPhone').value.trim(), offer: document.getElementById('docOffer').value.trim()}, 'doctorModal')" class="flex-1 bg-rose-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('doctorModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pharmacyModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-teal-800">تسجيل صيدلية خيرية</h3>
+            <input type="text" id="pharmName" placeholder="اسم الصيدلية" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="pharmPhone" placeholder="رقم الهاتف والعنوان" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="text" id="pharmOffer" placeholder="المساهمة (أدوية مجانية / تخفيض للحالات)" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('pharmacies', {name: document.getElementById('pharmName').value.trim(), phone: document.getElementById('pharmPhone').value.trim(), offer: document.getElementById('pharmOffer').value.trim()}, 'pharmacyModal')" class="flex-1 bg-teal-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('pharmacyModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="clothesModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-purple-800">انضمام محلات ملابس</h3>
+            <input type="text" id="clothName" placeholder="اسم المحل والعنوان" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="clothPhone" placeholder="رقم التواصل" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('clothesShops', {name: document.getElementById('clothName').value.trim(), phone: document.getElementById('clothPhone').value.trim()}, 'clothesModal')" class="flex-1 bg-purple-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('clothesModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="driverModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-blue-800">تسجيل مندوب توصيل (سفير خير)</h3>
+            <input type="text" id="driverName" placeholder="اسم المندوب" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="driverPhone" placeholder="رقم الهاتف (واتساب)" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('drivers', {name: document.getElementById('driverName').value.trim(), phone: document.getElementById('driverPhone').value.trim()}, 'driverModal')" class="flex-1 bg-blue-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('driverModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="teacherModal" class="hidden fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-3xl max-w-md w-full space-y-4">
+            <h3 class="font-black text-lg text-emerald-800">تسجيل معلم أو مدرسة للتعليم الخيري</h3>
+            <input type="text" id="teacherName" placeholder="اسم المعلم أو المادة والمرحلة" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <input type="tel" id="teacherPhone" placeholder="رقم التواصل" class="w-full p-3 bg-slate-50 border rounded-xl text-sm" required>
+            <div class="flex gap-2">
+                <button onclick="registerPartner('teachers', {name: document.getElementById('teacherName').value.trim(), phone: document.getElementById('teacherPhone').value.trim()}, 'teacherModal')" class="flex-1 bg-emerald-600 text-white font-bold p-3 rounded-xl cursor-pointer">تسجيل</button>
+                <button onclick="closeModal('teacherModal')" class="bg-slate-200 px-4 py-3 rounded-xl cursor-pointer">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- تذييل الصفحة -->
+    <footer class="bg-slate-900 text-slate-400 py-6 text-center mt-12 border-t border-slate-800">
+        <p class="text-sm">جميع الحقوق محفوظة لوجه الله تعالى 🌱</p>
+        <p class="text-xs text-emerald-400 mt-2 font-semibold">تطوير وبرمجة: Mohamed Adel El-Sayed (حماده الطبلاوي)</p>
+    </footer>
+
+    <!-- المنطق البرمجي الشامل المُصحح والمُحسن -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "YOUR_FIREBASE_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        let app, db, auth;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (error) {
+            console.error("خطأ في تهيئة Firebase:", error);
+        }
+
+        // دالة عرض التنبيهات العصرية (Toast Notification)
+        window.showToast = function(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-rose-600';
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-bold transition transform duration-300 translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : '⚠️'}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // إدارة الـ Modals وتفريغ حقول النوافذ عند إغلاقها
+        window.openModal = function(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            const modalEl = document.getElementById(modalId);
+            const inputs = modalEl.querySelectorAll('input, textarea');
+            inputs.forEach(input => input.value = '');
+        }
+
+        // دالة تسجيل الشركاء والطلبات الجديدة بأمان
+        window.registerPartner = async function(collectionName, dataObj, modalId) {
+            if (!db) {
+                showToast("قواعد البيانات غير متصلة.", "error");
+                return;
+            }
+            if(!dataObj.name || !dataObj.phone) {
+                showToast("يرجى إكمال الحقول الأساسية (الاسم ورقم الهاتف).", "error");
+                return;
+            }
+            try {
+                await addDoc(collection(db, collectionName), {
+                    ...dataObj,
+                    createdAt: serverTimestamp()
+                });
+                showToast(collectionName === 'needs' ? "تم إرسال طلبك بنجاح وسنقوم بالتواصل معك قريباً!" : "تم التسجيل بنجاح! جزاكم الله خيراً.", "success");
+                closeModal(modalId);
+            } catch(e) {
+                console.error(e);
+                showToast("حدث خطأ أثناء الإرسال.", "error");
+            }
+        }
+
+        // زيادة نقاط المطعم مع معالجة حقل النقاط بدقة
+        window.addRestaurantPoint = async function(resId, currentPoints) {
+            try {
+                const newPoints = (typeof currentPoints === 'number' && !isNaN(currentPoints)) ? currentPoints + 1 : 1;
+                await updateDoc(doc(db, "restaurants", resId), {
+                    points: newPoints
+                });
+                showToast("تم إضافة نقطة ولاء للمطعم بنجاح! 🌟", "success");
+            } catch(e) {
+                console.error(e);
+                showToast("تعذر تحديث النقاط.", "error");
+            }
+        }
+
+        // عداد الوجبات الفوري
+        let currentMealsCount = 1000;
+        window.donateMeal = function(count) {
+            const totalPrice = count * 70;
+            if (currentMealsCount >= count) {
+                currentMealsCount -= count;
+                document.getElementById('mealsNeededCount').innerText = currentMealsCount;
+                showToast(`جزاك الله خيراً! تم التبرع بـ ${count} وجبة (الإجمالي ${totalPrice}ج) بنجاح.`, "success");
+            } else {
+                showToast("تم استيفاء جميع الوجبات المطلوبة حالياً، جزاكم الله خيراً!", "error");
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        let isAuthReady = false;
+        if (auth) {
+            onAuthStateChanged(auth, (user) => {
+                if (user) { isAuthReady = true; } 
+                else { signInAnonymously(auth).catch(err => console.error("Auth error:", err)); }
+            });
+        }
+
+        // تهيئة الخريطة
+        var map = L.map('map').setView([30.5898, 32.2680], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        const blueIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]
+        });
+
+        var selectedMarker = null;
+        function updateSelectedLocation(lat, lng, popupText) {
+            document.getElementById('itemLat').value = lat.toFixed(4);
+            document.getElementById('itemLng').value = lng.toFixed(4);
+            if (selectedMarker) map.removeLayer(selectedMarker);
+            selectedMarker = L.marker([lat, lng], {icon: blueIcon}).addTo(map).bindPopup(popupText).openPopup();
+            map.setView([lat, lng], 15);
+        }
+
+        map.on('click', function(e) {
+            updateSelectedLocation(e.latlng.lat, e.latlng.lng, "📍 موقع التبرع الجديد");
+        });
+
+        document.getElementById('locateBtn').addEventListener('click', function() {
+            if (!navigator.geolocation) {
+                showToast("الموقع الجغرافي غير مدعوم في متصفحك.", "error");
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(pos => {
+                updateSelectedLocation(pos.coords.latitude, pos.coords.longitude, "📍 موقعك الحالي");
+            }, err => {
+                console.warn(err);
+                showToast("تعذر تحديد موقعك تلقائياً. يرجى الضغط يدوياً على الخريطة لتحديد الموقع.", "error");
+            }, { timeout: 10000 });
+        });
+
+        // الاستماع لقوائم الشركاء وقوائم التبرعات وتحديث الواجهة
+        if (db) {
+            onSnapshot(collection(db, "donations"), snapshot => {
+                let availableCount = 0;
+                let reservedCount = 0;
+                snapshot.forEach(docSnap => {
+                    let d = docSnap.data();
+                    if (d.status === "available") availableCount++;
+                    if (d.status === "reserved" || d.status === "done") reservedCount++;
+                });
+                document.getElementById('statDonations').innerText = availableCount;
+                document.getElementById('statReserved').innerText = reservedCount;
+            });
+
+            onSnapshot(collection(db, "restaurants"), snapshot => {
+                let html = "";
+                snapshot.forEach(docSnap => {
+                    let data = docSnap.data();
+                    let pts = (typeof data.points === 'number') ? data.points : 0;
+                    html += `<div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${escapeHtml(data.name)}</h4>
+                            <p class="text-[11px] text-slate-500">التواصل: ${escapeHtml(data.phone)} | النوع: ${escapeHtml(data.type)}</p>
+                            <span class="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded">نقاط الولاء الخيرية: ${pts} 🌟</span>
+                        </div>
+                        <button onclick="addRestaurantPoint('${docSnap.id}', ${pts})" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl cursor-pointer">تم أوردر (+1)</button>
+                    </div>`;
+                });
+                document.getElementById('restaurantsList').innerHTML = html || '<p class="text-xs text-slate-400 col-span-2">لا توجد مطاعم مسجلة حتى الآن.</p>';
+            });
+
+            onSnapshot(collection(db, "doctors"), snapshot => {
+                let html = "";
+                snapshot.forEach(docSnap => {
+                    let d = docSnap.data();
+                    html += `<div class="p-3 bg-rose-50 border border-rose-200 rounded-2xl">
+                        <span class="text-[10px] bg-rose-200 text-rose-800 font-bold px-2 py-0.5 rounded">طبيب خيري</span>
+                        <h4 class="font-bold text-slate-800 text-sm mt-1">${escapeHtml(d.name)}</h4>
+                        <p class="text-[11px] text-slate-600">العرض: ${escapeHtml(d.offer)} | تواصل: ${escapeHtml(d.phone)}</p>
+                    </div>`;
+                });
+                document.getElementById('medicalNetworkList').innerHTML = html || '<p class="text-xs text-slate-400">لا توجد حالات مسجلة.</p>';
+            });
+
+            onSnapshot(collection(db, "pharmacies"), snapshot => {
+                let html = "";
+                snapshot.forEach(docSnap => {
+                    let d = docSnap.data();
+                    html += `<div class="p-3 bg-teal-50 border border-teal-200 rounded-2xl">
+                        <span class="text-[10px] bg-teal-200 text-teal-800 font-bold px-2 py-0.5 rounded">صيدلية خيرية</span>
+                        <h4 class="font-bold text-slate-800 text-sm mt-1">${escapeHtml(d.name)}</h4>
+                        <p class="text-[11px] text-slate-600">المساهمة: ${escapeHtml(d.offer)} | تواصل: ${escapeHtml(d.phone)}</p>
+                    </div>`;
+                });
+                document.getElementById('pharmaciesList').innerHTML = html || '<p class="text-xs text-slate-400">لا توجد صيدليات مسجلة.</p>';
+            });
+
+            onSnapshot(collection(db, "clothesShops"), snapshot => {
+                let html = "";
+                snapshot.forEach(s => {
+                    let d = s.data();
+                    html += `<div class="p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
+                        <b class="text-slate-800 block">${escapeHtml(d.name)}</b>
+                        <span class="text-slate-500">هاتف: ${escapeHtml(d.phone)}</span>
+                    </div>`;
+                });
+                document.getElementById('clothesList').innerHTML = html || 'لا توجد محلات مسجلة بعد';
+            });
+
+            onSnapshot(collection(db, "drivers"), snapshot => {
+                let html = "";
+                snapshot.forEach(s => {
+                    let d = s.data();
+                    html += `<div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+                        <b class="text-slate-800 block">${escapeHtml(d.name)}</b>
+                        <span class="text-slate-500">هاتف: ${escapeHtml(d.phone)}</span>
+                    </div>`;
+                });
+                document.getElementById('driversList').innerHTML = html || 'لا يوجد مناديب مسجلين بعد';
+            });
+
+            onSnapshot(collection(db, "teachers"), snapshot => {
+                let html = "";
+                snapshot.forEach(s => {
+                    let d = s.data();
+                    html += `<div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <b class="text-slate-800 block">${escapeHtml(d.name)}</b>
+                        <span class="text-slate-500">هاتف: ${escapeHtml(d.phone)}</span>
+                    </div>`;
+                });
+                document.getElementById('teachersList').innerHTML = html || 'لا توجد معاهد أو معلمون مسجلون بعد';
+            });
+        }
+
+        // إرسال التبرعات على الخريطة
+        document.getElementById('donationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            if (!isAuthReady || !auth?.currentUser) {
+                showToast("جاري الاتصال بالنظام الأمني، يرجى المحاولة خلال لحظات.", "error");
+                return;
+            }
+
+            const lat = parseFloat(document.getElementById('itemLat').value);
+            const lng = parseFloat(document.getElementById('itemLng').value);
+            if (isNaN(lat) || isNaN(lng)) {
+                showToast("يرجى تحديد الموقع على الخريطة أولاً.", "error");
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "جاري النشر...";
+
+            try {
+                await addDoc(collection(db, "donations"), {
+                    item: document.getElementById('itemTitle').value.trim(),
+                    category: document.getElementById('itemCategory').value,
+                    urgency: document.getElementById('itemUrgency').value,
+                    desc: document.getElementById('itemDesc').value.trim(),
+                    lat: lat, lng: lng,
+                    donorId: auth.currentUser.uid,
+                    status: "available",
+                    createdAt: serverTimestamp()
+                });
+                
+                if (selectedMarker) { 
+                    map.removeLayer(selectedMarker); 
+                    selectedMarker = null; 
+                }
+                
+                showToast("جزاك الله خيراً! تم نشر العطاء بنجاح.", "success");
+                this.reset();
+                document.getElementById('itemLat').value = '';
+                document.getElementById('itemLng').value = '';
+            } catch (error) {
+                console.error(error);
+                showToast("حدث خطأ أثناء الحفظ.", "error");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "انشر التبرع على الخريطة لوجه الله 🤍";
+            }
+        });
+    </script>
+</body>
+</html>
+
